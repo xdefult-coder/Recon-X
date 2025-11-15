@@ -36,9 +36,12 @@ Recon X is a professional-level recon & OSINT automation tool. It works on:
 
 5. Quick Install Without Virtual Environment
 If not using a virtual environment:
+
+
 Agar virtual env nahi use karna:
 
    sudo apt install python3-requests
+   
 sudo pip3 install sublist3r --break-system-packages
  
 ```bash
