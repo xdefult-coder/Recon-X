@@ -397,7 +397,7 @@ class UniversalSubdomainFinder:
 # -----------------------------
 def main():
     parser = argparse.ArgumentParser(description="Universal Subdomain Finder - Kisi bhi domain ke liye 1000+ subdomains")
-    parser.add_argument('-d', '--domain', required=True, help='Target domain (e.g., example.com, facebook.com, google.com)')
+    parser.add_argument('-d', '--domain', required=True, help='Target domain (e.g., example.com, example.com, example.com)')
     parser.add_argument('-o', '--output', help='Output file to save all results')
     parser.add_argument('-t', '--threads', type=int, default=100, help='Number of threads (default: 100)')
     
