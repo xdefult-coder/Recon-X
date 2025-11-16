@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """
-ReconX Pro - Universal Subdomain Finder
-Kisi bhi domain ke liye 1000+ subdomains find karega
-Amass + Subfinder jaisa powerful tool
+ReconX Pro - All Subdomains with HTTP Status Codes
+Har subdomain aur uska status code dikhata hai
 """
 
 import os
@@ -13,7 +12,6 @@ import requests
 import dns.resolver
 import socket
 import threading
-import random
 import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -175,21 +173,25 @@ MASSIVE_SUBDOMAINS = [
 ]
 
 # -----------------------------
-# UNIVERSAL SUBDOMAIN FINDER
+# ALL SUBDOMAINS WITH STATUS CODES
 # -----------------------------
-class UniversalSubdomainFinder:
+class AllSubdomainsWithStatus:
     def __init__(self):
         self.results = {
-            'valid_subdomains': set(),
-            'invalid_subdomains': set(),
-            'error_subdomains': set(),
-            'all_checked': set()
+            'all_subdomains': [],
+            'status_codes': {},
+            'statistics': {
+                'total_tested': 0,
+                'dns_resolved': 0,
+                'http_checked': 0,
+                'by_status_code': {}
+            }
         }
-        self.dns_servers = ['8.8.8.8', '1.1.1.1', '9.9.9.9', '208.67.222.222']
+        self.dns_servers = ['8.8.8.8', '1.1.1.1', '9.9.9.9']
     
-    def find_subdomains(self, domain, output_file=None, threads=100):
-        """Kisi bhi domain ke liye 1000+ subdomains find karo"""
-        print(f"\n[🎯] STARTING UNIVERSAL SUBDOMAIN FINDER")
+    def find_all_with_status(self, domain, output_file=None, threads=100):
+        """Sare subdomains aur unke status codes find karo"""
+        print(f"\n[🎯] ALL SUBDOMAINS WITH HTTP STATUS CODES")
         print(f"[🌐] Target: {domain}")
         print(f"[📊] Testing {len(MASSIVE_SUBDOMAINS)} subdomains...")
         print(f"[⚡] Threads: {threads}")
@@ -197,216 +199,316 @@ class UniversalSubdomainFinder:
         
         start_time = time.time()
         
-        # Phase 1: Massive DNS Scanning
-        print("[1️⃣] PHASE 1: Massive DNS Scanning...")
-        dns_results = self._massive_dns_scan(domain, threads)
+        # Phase 1: DNS Resolution for ALL subdomains
+        print("[1️⃣] PHASE 1: DNS Resolution (All Subdomains)...")
+        all_subdomains = self._get_all_subdomains(domain)
         
-        # Phase 2: Live Host Detection
-        print("[2️⃣] PHASE 2: Live Host Detection...")
-        live_results = self._detect_live_hosts(dns_results['valid'])
+        # Phase 2: HTTP Status Codes for ALL subdomains
+        print("[2️⃣] PHASE 2: HTTP Status Code Analysis (All Subdomains)...")
+        status_results = self._check_all_http_status(all_subdomains)
         
         # Compile final results
         final_results = {
             "domain": domain,
             "scan_info": {
-                "total_tested": len(self.results['all_checked']),
-                "valid_subdomains": len(dns_results['valid']),
-                "invalid_subdomains": len(dns_results['invalid']),
-                "error_subdomains": len(dns_results['errors']),
-                "live_hosts": len(live_results['live']),
-                "scan_time": round(time.time() - start_time, 2)
+                "total_subdomains_tested": len(all_subdomains),
+                "dns_resolved": len([s for s in all_subdomains if s['dns_status'] == 'VALID']),
+                "http_status_checked": len(status_results),
+                "scan_time": round(time.time() - start_time, 2),
+                "status_code_breakdown": self._get_status_breakdown(status_results)
             },
-            "valid_subdomains": sorted(dns_results['valid']),
-            "invalid_subdomains": sorted(dns_results['invalid']),
-            "error_subdomains": sorted(dns_results['errors']),
-            "live_subdomains": live_results['live'],
-            "all_checked": sorted(self.results['all_checked'])
+            "all_subdomains": all_subdomains,
+            "status_codes": status_results
         }
         
-        self._display_results(final_results)
+        self._display_all_results(final_results)
         
-        # Save results
         if output_file:
-            self._save_results(final_results, output_file)
+            self._save_all_results(final_results, output_file)
         
         return final_results
     
-    def _massive_dns_scan(self, domain, threads=100):
-        """Massive DNS scanning with error tracking"""
-        valid = set()
-        invalid = set()
-        errors = set()
+    def _get_all_subdomains(self, domain):
+        """Saare possible subdomains generate karo"""
+        all_subs = []
         
-        def check_subdomain(sub):
+        for sub in MASSIVE_SUBDOMAINS:
             full_domain = f"{sub}.{domain}"
-            self.results['all_checked'].add(full_domain)
-            
-            try:
-                # Try multiple DNS servers
-                for dns_server in self.dns_servers:
-                    try:
-                        resolver = dns.resolver.Resolver()
-                        resolver.nameservers = [dns_server]
-                        resolver.timeout = 2
-                        resolver.lifetime = 2
-                        
-                        answers = resolver.resolve(full_domain, 'A')
-                        ips = [str(rdata) for rdata in answers]
-                        return full_domain, ips, "VALID", None
-                    except dns.resolver.NXDOMAIN:
-                        return full_domain, [], "INVALID", "NXDOMAIN"
-                    except dns.resolver.NoAnswer:
-                        continue
-                    except dns.resolver.Timeout:
-                        continue
-                
-                return full_domain, [], "ERROR", "TIMEOUT_ALL_SERVERS"
-                
-            except Exception as e:
-                return full_domain, [], "ERROR", str(e)
+            all_subs.append({
+                'subdomain': full_domain,
+                'base_sub': sub,
+                'dns_status': 'PENDING'
+            })
         
-        # Process in batches
-        batch_size = 200
-        total = len(MASSIVE_SUBDOMAINS)
-        
-        for i in range(0, total, batch_size):
-            batch = MASSIVE_SUBDOMAINS[i:i + batch_size]
-            completed = i + len(batch)
-            
-            print(f"    🔄 Progress: {completed}/{total} ({completed/total*100:.1f}%)")
-            
-            with ThreadPoolExecutor(max_workers=threads) as executor:
-                futures = [executor.submit(check_subdomain, sub) for sub in batch]
-                
-                for future in as_completed(futures):
-                    subdomain, ips, status, error = future.result()
-                    
-                    if status == "VALID":
-                        valid.add(subdomain)
-                    elif status == "INVALID":
-                        invalid.add(subdomain)
-                    else:
-                        errors.add(f"{subdomain} - {error}")
-        
-        return {
-            "valid": valid,
-            "invalid": invalid,
-            "errors": errors
-        }
+        return all_subs
     
-    def _detect_live_hosts(self, subdomains):
-        """Detect live HTTP/HTTPS hosts"""
-        live_hosts = {}
+    def _check_all_http_status(self, subdomains):
+        """Har subdomain ka HTTP status code check karo"""
+        results = {}
         
-        def check_http(subdomain):
+        def check_single_subdomain(sub_info):
+            subdomain = sub_info['subdomain']
+            
+            # First check DNS
+            dns_status, ips = self._check_dns(subdomain)
+            sub_info['dns_status'] = dns_status
+            sub_info['ips'] = ips
+            
+            # Then check HTTP status
+            http_results = {}
+            
             for protocol in ['http', 'https']:
                 try:
                     url = f"{protocol}://{subdomain}"
-                    response = requests.get(url, timeout=3, verify=False, allow_redirects=True)
-                    if response.status_code < 400:
-                        return subdomain, {
-                            "protocol": protocol,
-                            "status_code": response.status_code,
-                            "url": url
-                        }
-                except:
-                    continue
-            return subdomain, None
-        
-        print(f"    🔄 Checking {len(subdomains)} valid subdomains for live hosts...")
-        
-        with ThreadPoolExecutor(max_workers=20) as executor:
-            futures = [executor.submit(check_http, sub) for sub in subdomains]
+                    response = requests.get(
+                        url, 
+                        timeout=3, 
+                        verify=False, 
+                        allow_redirects=False,  # No redirects to get actual status
+                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+                    )
+                    http_results[protocol] = {
+                        'status_code': response.status_code,
+                        'url': url,
+                        'content_length': len(response.content) if response.content else 0,
+                        'headers': dict(response.headers)
+                    }
+                except requests.exceptions.SSLError:
+                    http_results[protocol] = {
+                        'status_code': 'SSL_ERROR',
+                        'error': 'SSL Certificate Error'
+                    }
+                except requests.exceptions.ConnectTimeout:
+                    http_results[protocol] = {
+                        'status_code': 'TIMEOUT',
+                        'error': 'Connection Timeout'
+                    }
+                except requests.exceptions.ConnectionError:
+                    http_results[protocol] = {
+                        'status_code': 'CONNECTION_ERROR',
+                        'error': 'Connection Failed'
+                    }
+                except requests.exceptions.RequestException as e:
+                    http_results[protocol] = {
+                        'status_code': 'REQUEST_ERROR',
+                        'error': str(e)
+                    }
+                except Exception as e:
+                    http_results[protocol] = {
+                        'status_code': 'UNKNOWN_ERROR',
+                        'error': str(e)
+                    }
             
+            return subdomain, http_results, dns_status, ips
+        
+        print(f"    🔄 Checking {len(subdomains)} subdomains...")
+        
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = [executor.submit(check_single_subdomain, sub) for sub in subdomains]
+            
+            completed = 0
             for future in as_completed(futures):
-                subdomain, result = future.result()
-                if result:
-                    live_hosts[subdomain] = result
+                completed += 1
+                if completed % 100 == 0:
+                    print(f"        📊 Completed: {completed}/{len(subdomains)}")
+                
+                subdomain, http_results, dns_status, ips = future.result()
+                results[subdomain] = {
+                    'http': http_results,
+                    'dns': dns_status,
+                    'ips': ips
+                }
         
-        return {"live": live_hosts}
+        return results
     
-    def _display_results(self, results):
-        """Display comprehensive results"""
-        stats = results['scan_info']
+    def _check_dns(self, subdomain):
+        """DNS resolution check"""
+        try:
+            resolver = dns.resolver.Resolver()
+            resolver.nameservers = self.dns_servers
+            resolver.timeout = 2
+            resolver.lifetime = 2
+            
+            answers = resolver.resolve(subdomain, 'A')
+            return 'VALID', [str(rdata) for rdata in answers]
+        except dns.resolver.NXDOMAIN:
+            return 'NXDOMAIN', []
+        except dns.resolver.NoAnswer:
+            return 'NO_ANSWER', []
+        except dns.resolver.Timeout:
+            return 'TIMEOUT', []
+        except Exception:
+            return 'ERROR', []
+    
+    def _get_status_breakdown(self, status_results):
+        """Status codes ka breakdown generate karo"""
+        breakdown = {
+            '200-299': 0, '300-399': 0, '400-499': 0, '500-599': 0,
+            'SSL_ERROR': 0, 'TIMEOUT': 0, 'CONNECTION_ERROR': 0,
+            'REQUEST_ERROR': 0, 'UNKNOWN_ERROR': 0
+        }
         
-        print(f"\n{'='*60}")
-        print(f"[🎉] SCAN COMPLETED!")
-        print(f"{'='*60}")
+        for subdomain, data in status_results.items():
+            for protocol, info in data['http'].items():
+                status = info.get('status_code')
+                if isinstance(status, int):
+                    if 200 <= status < 300:
+                        breakdown['200-299'] += 1
+                    elif 300 <= status < 400:
+                        breakdown['300-399'] += 1
+                    elif 400 <= status < 500:
+                        breakdown['400-499'] += 1
+                    elif 500 <= status < 600:
+                        breakdown['500-599'] += 1
+                else:
+                    if status in breakdown:
+                        breakdown[status] += 1
+                    else:
+                        breakdown['UNKNOWN_ERROR'] += 1
+        
+        return breakdown
+    
+    def _display_all_results(self, results):
+        """Sare results display karo"""
+        stats = results['scan_info']
+        status_results = results['status_codes']
+        
+        print(f"\n{'='*80}")
+        print(f"[🎉] SCAN COMPLETED - ALL SUBDOMAINS WITH STATUS CODES")
+        print(f"{'='*80}")
         print(f"🌐 Domain: {results['domain']}")
         print(f"⏱️  Scan Time: {stats['scan_time']} seconds")
-        print(f"📊 Total Tested: {stats['total_tested']}")
-        print(f"✅ Valid Subdomains: {stats['valid_subdomains']}")
-        print(f"❌ Invalid Subdomains: {stats['invalid_subdomains']}")
-        print(f"⚠️  Error Subdomains: {stats['error_subdomains']}")
-        print(f"🌐 Live Hosts: {stats['live_hosts']}")
+        print(f"📊 Total Subdomains Tested: {stats['total_subdomains_tested']}")
+        print(f"🔍 DNS Resolved: {stats['dns_resolved']}")
+        print(f"🌐 HTTP Status Checked: {stats['http_status_checked']}")
         
-        # Show valid subdomains
-        if results['valid_subdomains']:
-            print(f"\n[✅] VALID SUBDOMAINS ({len(results['valid_subdomains'])}):")
-            for subdomain in results['valid_subdomains'][:30]:  # Show first 30
-                print(f"   🌐 {subdomain}")
+        # Status code breakdown
+        breakdown = stats['status_code_breakdown']
+        print(f"\n[📊] HTTP STATUS CODE BREAKDOWN:")
+        print(f"    🟢 200-299 (Success): {breakdown['200-299']}")
+        print(f"    🔵 300-399 (Redirect): {breakdown['300-399']}")
+        print(f"    🟡 400-499 (Client Error): {breakdown['400-499']}")
+        print(f"    🔴 500-599 (Server Error): {breakdown['500-599']}")
+        print(f"    🔐 SSL Errors: {breakdown['SSL_ERROR']}")
+        print(f"    ⏰ Timeouts: {breakdown['TIMEOUT']}")
+        print(f"    🔌 Connection Errors: {breakdown['CONNECTION_ERROR']}")
+        
+        # Display ALL subdomains with their status codes
+        print(f"\n[🌐] ALL SUBDOMAINS WITH HTTP STATUS CODES:")
+        print("-" * 80)
+        
+        # Sort by subdomain name
+        sorted_subdomains = sorted(status_results.items())
+        
+        for subdomain, data in sorted_subdomains:
+            dns_status = data['dns']
+            http_data = data['http']
             
-            if len(results['valid_subdomains']) > 30:
-                print(f"   ... and {len(results['valid_subdomains']) - 30} more")
-        
-        # Show live hosts
-        if results['live_subdomains']:
-            print(f"\n[🔥] LIVE HOSTS ({len(results['live_subdomains'])}):")
-            for subdomain, info in list(results['live_subdomains'].items())[:20]:
-                print(f"   🔥 {subdomain} -> {info['url']} ({info['status_code']})")
+            # DNS status indicator
+            if dns_status == 'VALID':
+                dns_indicator = '🔵'
+            elif dns_status == 'NXDOMAIN':
+                dns_indicator = '⚫'
+            else:
+                dns_indicator = '⚪'
+            
+            # Get best HTTP status (prefer HTTPS over HTTP)
+            best_status = None
+            best_protocol = None
+            
+            for protocol in ['https', 'http']:
+                if protocol in http_data:
+                    status_info = http_data[protocol]
+                    status = status_info.get('status_code')
+                    if status:
+                        best_status = status
+                        best_protocol = protocol
+                        break
+            
+            # Status code color and display
+            if best_status:
+                if isinstance(best_status, int):
+                    if 200 <= best_status < 300:
+                        status_str = f"🟢 {best_status}"
+                    elif 300 <= best_status < 400:
+                        status_str = f"🔵 {best_status}"
+                    elif 400 <= best_status < 500:
+                        status_str = f"🟡 {best_status}"
+                    elif 500 <= best_status < 600:
+                        status_str = f"🔴 {best_status}"
+                    else:
+                        status_str = f"⚪ {best_status}"
+                else:
+                    status_str = f"⚫ {best_status}"
+                
+                print(f"{dns_indicator} {status_str} - {subdomain}")
+            else:
+                print(f"{dns_indicator} ⚫ NO_HTTP - {subdomain}")
     
-    def _save_results(self, results, filename):
-        """Save all results to file"""
+    def _save_all_results(self, results, filename):
+        """Sare results save karo"""
         with open(filename, 'w') as f:
-            f.write(f"UNIVERSAL SUBDOMAIN FINDER RESULTS\n")
+            f.write(f"ALL SUBDOMAINS WITH HTTP STATUS CODES\n")
             f.write(f"Domain: {results['domain']}\n")
             f.write(f"Scan Time: {results['scan_info']['scan_time']} seconds\n")
-            f.write("=" * 60 + "\n\n")
+            f.write("=" * 80 + "\n\n")
             
             f.write("SCAN STATISTICS:\n")
-            f.write(f"  Total Subdomains Tested: {results['scan_info']['total_tested']}\n")
-            f.write(f"  Valid Subdomains: {results['scan_info']['valid_subdomains']}\n")
-            f.write(f"  Invalid Subdomains: {results['scan_info']['invalid_subdomains']}\n")
-            f.write(f"  Error Subdomains: {results['scan_info']['error_subdomains']}\n")
-            f.write(f"  Live Hosts: {results['scan_info']['live_hosts']}\n\n")
+            f.write(f"  Total Subdomains Tested: {results['scan_info']['total_subdomains_tested']}\n")
+            f.write(f"  DNS Resolved: {results['scan_info']['dns_resolved']}\n")
+            f.write(f"  HTTP Status Checked: {results['scan_info']['http_status_checked']}\n\n")
             
-            f.write("ALL VALID SUBDOMAINS:\n")
-            f.write("-" * 40 + "\n")
-            for subdomain in results['valid_subdomains']:
-                f.write(f"{subdomain}\n")
+            f.write("STATUS CODE BREAKDOWN:\n")
+            breakdown = results['scan_info']['status_code_breakdown']
+            for category, count in breakdown.items():
+                if count > 0:
+                    f.write(f"  {category}: {count}\n")
             
-            f.write("\nLIVE HOSTS:\n")
-            f.write("-" * 40 + "\n")
-            for subdomain, info in results['live_subdomains'].items():
-                f.write(f"{subdomain} -> {info['url']} ({info['status_code']})\n")
+            f.write("\n" + "="*80 + "\n")
+            f.write("ALL SUBDOMAINS WITH STATUS CODES:\n")
+            f.write("="*80 + "\n\n")
             
-            f.write("\nINVALID SUBDOMAINS:\n")
-            f.write("-" * 40 + "\n")
-            for subdomain in results['invalid_subdomains'][:100]:  # First 100 only
-                f.write(f"{subdomain}\n")
+            # Sort by subdomain name
+            sorted_subdomains = sorted(results['status_codes'].items())
             
-            f.write("\nERROR SUBDOMAINS:\n")
-            f.write("-" * 40 + "\n")
-            for error in list(results['error_subdomains'])[:50]:  # First 50 errors
-                f.write(f"{error}\n")
+            for subdomain, data in sorted_subdomains:
+                f.write(f"{subdomain}:\n")
+                f.write(f"  DNS Status: {data['dns']}\n")
+                if data['ips']:
+                    f.write(f"  IP Addresses: {', '.join(data['ips'])}\n")
+                
+                for protocol in ['http', 'https']:
+                    if protocol in data['http']:
+                        info = data['http'][protocol]
+                        status = info.get('status_code', 'UNKNOWN')
+                        f.write(f"  {protocol.upper()}: {status}\n")
+                        
+                        if 'url' in info:
+                            f.write(f"    URL: {info['url']}\n")
+                        if 'content_length' in info:
+                            f.write(f"    Content Length: {info['content_length']} bytes\n")
+                        if 'error' in info:
+                            f.write(f"    Error: {info['error']}\n")
+                
+                f.write("\n")
         
-        print(f"\n[💾] Complete results saved to: {filename}")
+        print(f"\n[💾] Complete results with ALL subdomains saved to: {filename}")
 
 # -----------------------------
 # COMMAND LINE INTERFACE
 # -----------------------------
 def main():
-    parser = argparse.ArgumentParser(description="Universal Subdomain Finder - Kisi bhi domain ke liye 1000+ subdomains")
-    parser.add_argument('-d', '--domain', required=True, help='Target domain (e.g., example.com, example.com, example.com)')
+    parser = argparse.ArgumentParser(description="All Subdomains with HTTP Status Codes")
+    parser.add_argument('-d', '--domain', required=True, help='Target domain (e.g., enample.com, example.com)')
     parser.add_argument('-o', '--output', help='Output file to save all results')
-    parser.add_argument('-t', '--threads', type=int, default=100, help='Number of threads (default: 100)')
+    parser.add_argument('-t', '--threads', type=int, default=50, help='Number of threads (default: 50)')
     
     args = parser.parse_args()
     
     print_banner()
     
-    finder = UniversalSubdomainFinder()
-    results = finder.find_subdomains(
+    finder = AllSubdomainsWithStatus()
+    results = finder.find_all_with_status(
         domain=args.domain,
         output_file=args.output,
         threads=args.threads
@@ -421,12 +523,12 @@ def print_banner():
 ██╔══██╗██╔══╝  ██║     ██║   ██║██║╚██╗██║     ██╔██╗ 
 ██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║    ██╔╝ ██╗
 ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝
-           U N I V E R S A L   F I N D E R
+        ALL SUBDOMAINS + STATUS CODES
 """
     print(BANNER)
     print("=" * 70)
-    print(f"🎯 Kisi bhi domain ke liye 1500+ Subdomains Finder")
-    print(f"📁 Version: v4.0.0 (Universal Edition)")
+    print(f"🎯 All Subdomains with HTTP Status Codes")
+    print(f"📁 Version: v6.0.0 (Complete Edition)")
     print(f"🕐 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
     print()
@@ -437,10 +539,9 @@ if __name__ == "__main__":
         print("Usage: python3 reconx.py -d DOMAIN [-o OUTPUT_FILE] [-t THREADS]")
         print("\nExamples:")
         print("  python3 reconx.py -d example.com")
-        print("  python3 reconx.py -d example.com -o example.txt")
-        print("  python3 reconx.py -d example.com -t 200 -o example.txt")
-        print("  python3 reconx.py -d example.com -o example.txt")
-        print("\n💡 Kisi bhi domain ke liye use karein: example.com ")
+        print("  python3 reconx.py -d example.com.com -o example.txt")
+        print("  python3 reconx.py -d example.com -t 100 -o example.txt")
+        print("\n💡 SARE SUBDOMAINS AUR UNKE STATUS CODES DIKHAYEGA!")
         sys.exit(1)
     
     main()
