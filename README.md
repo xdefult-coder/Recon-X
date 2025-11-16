@@ -10,3 +10,12 @@ python3 reconx.py intel -d google.com -active
 python3 reconx.py enum -d facebook.com
 python3 reconx.py enum -d facebook.com -ports -txt results.txt
 python3 reconx.py enum -d facebook.com -active -ports -o results.json
+
+# Script ko executable banao
+chmod +x reconx.py
+
+# Alias banao (optional)
+alias reconx='python3 /root/Desktop/Recon-X/reconx.py'
+
+# Phir direct use karo
+reconx intel -d facebook.com
