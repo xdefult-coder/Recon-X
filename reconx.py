@@ -205,7 +205,7 @@ class AllSubdomainsWithStatus:
         
         # Phase 2: HTTP Status Codes for ALL subdomains
         print("[2️⃣] PHASE 2: HTTP Status Code Analysis (All Subdomains)...")
-        status_results = self._check_all_http_status(all_subdomains)
+        status_results = self._check_all_http_status(all_subdomains, threads)  # FIXED: threads parameter add kiya
         
         # Compile final results
         final_results = {
@@ -242,7 +242,7 @@ class AllSubdomainsWithStatus:
         
         return all_subs
     
-    def _check_all_http_status(self, subdomains):
+    def _check_all_http_status(self, subdomains, threads=50):  # FIXED: threads parameter add kiya
         """Har subdomain ka HTTP status code check karo"""
         results = {}
         
@@ -303,7 +303,7 @@ class AllSubdomainsWithStatus:
         
         print(f"    🔄 Checking {len(subdomains)} subdomains...")
         
-        with ThreadPoolExecutor(max_workers=threads) as executor:
+        with ThreadPoolExecutor(max_workers=threads) as executor:  # FIXED: threads variable use kiya
             futures = [executor.submit(check_single_subdomain, sub) for sub in subdomains]
             
             completed = 0
@@ -499,7 +499,7 @@ class AllSubdomainsWithStatus:
 # -----------------------------
 def main():
     parser = argparse.ArgumentParser(description="All Subdomains with HTTP Status Codes")
-    parser.add_argument('-d', '--domain', required=True, help='Target domain (e.g., enample.com, example.com)')
+    parser.add_argument('-d', '--domain', required=True, help='Target domain (e.g., example.com, example.com)')
     parser.add_argument('-o', '--output', help='Output file to save all results')
     parser.add_argument('-t', '--threads', type=int, default=50, help='Number of threads (default: 50)')
     
@@ -539,8 +539,8 @@ if __name__ == "__main__":
         print("Usage: python3 reconx.py -d DOMAIN [-o OUTPUT_FILE] [-t THREADS]")
         print("\nExamples:")
         print("  python3 reconx.py -d example.com")
-        print("  python3 reconx.py -d example.com.com -o example.txt")
-        print("  python3 reconx.py -d example.com -t 100 -o example.txt")
+        print("  python3 reconx.py -d example.com -o result.txt")
+        print("  python3 reconx.py -d example.com -t 100 -o example_all_status.txt")
         print("\n💡 SARE SUBDOMAINS AUR UNKE STATUS CODES DIKHAYEGA!")
         sys.exit(1)
     
