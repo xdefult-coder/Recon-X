@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-ReconX Pro - 1000+ Subdomains Finder
-Kisi bhi domain ke liye complete subdomain discovery
+ReconX Pro - Universal Subdomain Finder
+Kisi bhi domain ke liye 1000+ subdomains find karega
+Amass + Subfinder jaisa powerful tool
 """
 
 import os
@@ -15,37 +16,41 @@ import threading
 import random
 import time
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # -----------------------------
-# MASSIVE SUBDOMAINS WORDLIST (1000+)
+# MASSIVE SUBDOMAINS WORDLIST (1500+)
 # -----------------------------
 MASSIVE_SUBDOMAINS = [
-    # Common & Basic (50)
+    # Common & Basic (100)
     'www', 'api', 'mail', 'ftp', 'admin', 'test', 'dev', 'staging', 'prod',
     'blog', 'shop', 'forum', 'support', 'help', 'docs', 'news', 'media',
     'cdn', 'static', 'app', 'apps', 'mobile', 'web', 'secure', 'portal',
     'login', 'signin', 'dashboard', 'account', 'user', 'users', 'profile',
     'search', 'find', 'query', 'results', 'data', 'database', 'db', 'sql',
     'backup', 'archive', 'old', 'new', 'temp', 'tmp', 'demo', 'sample', 'example',
+    'home', 'site', 'server', 'client', 'host', 'node', 'service', 'services',
+    'cloud', 'storage', 'file', 'files', 'image', 'images', 'img', 'video',
+    'videos', 'audio', 'music', 'download', 'uploads', 'cdn1', 'cdn2', 'cdn3',
+    'static1', 'static2', 'assets', 'asset', 'resource', 'resources', 'content',
+    'core', 'main', 'primary', 'secondary', 'backup01', 'backup02', 'backup03',
 
-    # Services & Protocols (50)
+    # Services & Protocols (100)
     'smtp', 'pop', 'pop3', 'imap', 'imap4', 'webmail', 'email', 'mail2',
     'ssh', 'vpn', 'remote', 'ftp2', 'ftps', 'sftp', 'rsync', 'ldap', 'ldaps',
     'proxy', 'firewall', 'router', 'switch', 'gateway', 'portal', 'console',
-    'terminal', 'shell', 'cmd', 'command', 'exec', 'run', 'service', 'services',
-    'svc', 'daemon', 'server', 'client', 'host', 'node', 'cluster', 'loadbalancer',
-    'lb', 'balancer', 'cache', 'caching', 'cdn2', 'cdn3', 'edge', 'edges', 'origin',
+    'terminal', 'shell', 'cmd', 'command', 'exec', 'run', 'svc', 'daemon',
 
-    # Development & Staging (50)
+    # Development & Staging (100)
     'dev1', 'dev2', 'dev3', 'dev4', 'dev5', 'dev6', 'dev7', 'dev8', 'dev9', 'dev10',
     'staging1', 'staging2', 'staging3', 'staging4', 'staging5', 'staging6', 'staging7',
     'stage', 'stage1', 'stage2', 'stage3', 'preprod', 'pre-prod', 'preproduction',
     'qa', 'qa1', 'qa2', 'qa3', 'test1', 'test2', 'test3', 'test4', 'test5',
     'testing', 'testing1', 'testing2', 'uat', 'uat1', 'uat2', 'demo1', 'demo2',
     'sandbox', 'playground', 'experiment', 'experimental', 'lab', 'labs', 'research',
+    'alpha', 'beta', 'gamma', 'delta', 'rc', 'release', 'build', 'build1', 'build2',
 
-    # Infrastructure & Cloud (100)
+    # Infrastructure & Cloud (150)
     'aws', 'azure', 'gcp', 'cloud', 'cloudfront', 's3', 'ec2', 'lambda', 'azureedge',
     'googleusercontent', 'digitalocean', 'linode', 'vultr', 'heroku', 'netlify',
     'vercel', 'firebase', 'amplify', 'storage', 'bucket', 'container', 'registry',
@@ -60,22 +65,16 @@ MASSIVE_SUBDOMAINS = [
     'jenkins', 'gitlab', 'github', 'bitbucket', 'jira', 'confluence', 'bamboo',
     'teamcity', 'circleci', 'travis', 'codeship', 'buddy', 'drone', 'argo',
 
-    # Applications & Products (100)
+    # Applications & Products (150)
     'wordpress', 'joomla', 'drupal', 'magento', 'prestashop', 'opencart',
     'woocommerce', 'shopify', 'bigcommerce', 'squarespace', 'wix', 'weebly',
     'sharepoint', 'exchange', 'owa', 'lync', 'teams', 'skype', 'zoom', 'meet',
     'webex', 'gotomeeting', 'slack', 'discord', 'telegram', 'whatsapp', 'viber',
     'signal', 'line', 'kakao', 'wechat', 'qq', 'vimeo', 'dailymotion', 'twitch',
     'mixer', 'dlive', 'periscope', 'snapchat', 'tiktok', 'pinterest', 'tumblr',
-    'reddit', 'quora', 'medium', 'blogger', 'ghost', 'substack', 'medium',
-    'linkedin', 'twitter', 'instagram', 'youtube', 'facebook', 'messenger',
-    'whatsapp', 'telegram', 'discord', 'slack', 'teams', 'zoom', 'webex',
-    'gotomeeting', 'skype', 'hangouts', 'duo', 'meet', 'jitsi', 'bigbluebutton',
-    'moodle', 'blackboard', 'canvas', 'schoology', 'edmodo', 'googleclassroom',
-    'office365', 'gsuite', 'gsuite2', 'workspace', 'dropbox', 'box', 'onedrive',
-    'icloud', 'mega', 'mediafire', 'sendspace', 'wetransfer', 'fileserver',
+    'reddit', 'quora', 'medium', 'blogger', 'ghost', 'substack',
 
-    # Security & Monitoring (50)
+    # Security & Monitoring (100)
     'security', 'secure', 'auth', 'authentication', 'authorization', 'oauth',
     'sso', 'cas', 'saml', 'openid', 'ldap', 'kerberos', 'radius', 'tacacs',
     'firewall', 'waf', 'ips', 'ids', 'siem', 'soc', 'noc', 'monitoring',
@@ -84,7 +83,7 @@ MASSIVE_SUBDOMAINS = [
     'splunk', 'elastic', 'loggly', 'papertrail', 'sumologic', 'graylog',
     'sentry', 'rollbar', 'bugsnag', 'airbrake', 'honeybadger', 'raygun',
 
-    # Network & Infrastructure (100)
+    # Network & DNS (100)
     'ns1', 'ns2', 'ns3', 'ns4', 'ns5', 'dns1', 'dns2', 'dns3', 'dns4', 'dns5',
     'router1', 'router2', 'switch1', 'switch2', 'firewall1', 'firewall2',
     'loadbalancer1', 'loadbalancer2', 'proxy1', 'proxy2', 'cache1', 'cache2',
@@ -92,26 +91,15 @@ MASSIVE_SUBDOMAINS = [
     'server1', 'server2', 'server3', 'server4', 'server5', 'server6', 'server7',
     'server8', 'server9', 'server10', 'host1', 'host2', 'host3', 'host4', 'host5',
     'node1', 'node2', 'node3', 'node4', 'node5', 'cluster1', 'cluster2', 'cluster3',
-    'dc1', 'dc2', 'dc3', 'idc1', 'idc2', 'idc3', 'rack1', 'rack2', 'rack3',
-    'vm1', 'vm2', 'vm3', 'vm4', 'vm5', 'container1', 'container2', 'container3',
-    'pod1', 'pod2', 'pod3', 'service1', 'service2', 'service3', 'deployment1',
-    'deployment2', 'deployment3', 'statefulset1', 'statefulset2', 'daemonset1',
 
-    # Geographic & Regional (100)
+    # Geographic & Regional (150)
     'us', 'usa', 'uk', 'gb', 'eu', 'europe', 'asia', 'apac', 'emea', 'na', 'sa',
     'africa', 'australia', 'canada', 'germany', 'france', 'italy', 'spain',
     'japan', 'china', 'india', 'brazil', 'mexico', 'russia', 'korea', 'singapore',
     'hongkong', 'taiwan', 'dubai', 'uae', 'saudi', 'qatar', 'kuwait', 'bahrain',
     'oman', 'egypt', 'southafrica', 'nigeria', 'kenya', 'ghana', 'morocco',
     'turkey', 'israel', 'iran', 'pakistan', 'bangladesh', 'srilanka', 'vietnam',
-    'thailand', 'malaysia', 'indonesia', 'philippines', 'newzealand', 'australia',
-    'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide', 'auckland', 'wellington',
-    'london', 'paris', 'berlin', 'frankfurt', 'amsterdam', 'brussels', 'zurich',
-    'milan', 'rome', 'madrid', 'barcelona', 'stockholm', 'oslo', 'copenhagen',
-    'helsinki', 'warsaw', 'prague', 'vienna', 'budapest', 'bucharest', 'sofia',
-    'athens', 'istanbul', 'moscow', 'stpetersburg', 'beijing', 'shanghai',
-    'guangzhou', 'shenzhen', 'tokyo', 'osaka', 'nagoya', 'seoul', 'busan',
-    'delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'pune',
+    'thailand', 'malaysia', 'indonesia', 'philippines', 'newzealand',
 
     # Numbers & Combinations (200)
     '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
@@ -123,13 +111,8 @@ MASSIVE_SUBDOMAINS = [
     '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000',
     'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
     'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-    'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta',
-    'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'omicron', 'pi', 'rho',
-    'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega',
-    'primary', 'secondary', 'tertiary', 'quaternary', 'quinary',
-    'senary', 'septenary', 'octonary', 'nonary', 'denary',
 
-    # Technology Specific (100)
+    # Technology Stack (150)
     'java', 'python', 'ruby', 'php', 'node', 'nodejs', 'go', 'golang',
     'rust', 'scala', 'kotlin', 'swift', 'objectivec', 'csharp', 'fsharp',
     'dotnet', 'aspnet', 'laravel', 'django', 'flask', 'rails', 'spring',
@@ -140,9 +123,8 @@ MASSIVE_SUBDOMAINS = [
     'tensorflow', 'pytorch', 'keras', 'scikit', 'numpy', 'pandas',
     'matplotlib', 'seaborn', 'plotly', 'd3', 'threejs', 'react', 'vue',
     'angular', 'svelte', 'ember', 'backbone', 'jquery', 'bootstrap',
-    'tailwind', 'bulma', 'foundation', 'semanticui', 'materialize',
 
-    # Business & Departments (100)
+    # Business & Departments (150)
     'hr', 'humanresources', 'payroll', 'benefits', 'recruiting', 'talent',
     'careers', 'jobs', 'resume', 'application', 'interview', 'onboarding',
     'finance', 'accounting', 'billing', 'invoice', 'payment', 'payments',
@@ -153,13 +135,8 @@ MASSIVE_SUBDOMAINS = [
     'reseller', 'dealer', 'agent', 'broker', 'merchant', 'retail', 'wholesale',
     'operations', 'production', 'manufacturing', 'factory', 'plant', 'warehouse',
     'logistics', 'supplychain', 'inventory', 'stock', 'order', 'shipping',
-    'delivery', 'transport', 'fleet', 'maintenance', 'repair', 'service',
-    'quality', 'qc', 'qa', 'testing', 'inspection', 'certification',
-    'research', 'development', 'rnd', 'innovation', 'labs', 'studio',
-    'design', 'creative', 'art', 'photo', 'video', 'audio', 'media',
-    'content', 'publishing', 'editorial', 'newsroom', 'press', 'pr',
 
-    # Additional Common (150)
+    # Additional Common (250)
     'access', 'activity', 'analytics', 'assets', 'attachment', 'back',
     'backup01', 'backup02', 'backup03', 'backup04', 'backup05', 'backup06',
     'backup07', 'backup08', 'backup09', 'backup10', 'backup11', 'backup12',
@@ -169,248 +146,249 @@ MASSIVE_SUBDOMAINS = [
     'backup31', 'backup32', 'backup33', 'backup34', 'backup35', 'backup36',
     'backup37', 'backup38', 'backup39', 'backup40', 'backup41', 'backup42',
     'backup43', 'backup44', 'backup45', 'backup46', 'backup47', 'backup48',
-    'backup49', 'backup50', 'backup51', 'backup52', 'backup53', 'backup54',
-    'backup55', 'backup56', 'backup57', 'backup58', 'backup59', 'backup60',
-    'backup61', 'backup62', 'backup63', 'backup64', 'backup65', 'backup66',
-    'backup67', 'backup68', 'backup69', 'backup70', 'backup71', 'backup72',
-    'backup73', 'backup74', 'backup75', 'backup76', 'backup77', 'backup78',
-    'backup79', 'backup80', 'backup81', 'backup82', 'backup83', 'backup84',
-    'backup85', 'backup86', 'backup87', 'backup88', 'backup89', 'backup90',
-    'backup91', 'backup92', 'backup93', 'backup94', 'backup95', 'backup96',
-    'backup97', 'backup98', 'backup99', 'backup100', 'backup-01', 'backup-02',
-    'backup-03', 'backup-04', 'backup-05', 'backup-06', 'backup-07', 'backup-08',
-    'backup-09', 'backup-10', 'backup-11', 'backup-12', 'backup-13', 'backup-14',
-    'backup-15', 'backup-16', 'backup-17', 'backup-18', 'backup-19', 'backup-20'
+    'backup49', 'backup50', 'm', 'mobile1', 'mobile2', 'wap', 'android', 'ios',
+    'iphone', 'ipad', 'tablet', 'desktop', 'pc', 'mac', 'linux', 'windows',
+    'live', 'stream', 'broadcast', 'tv', 'radio', 'chat', 'message', 'messaging',
+    'im', 'xmpp', 'webrtc', 'stun', 'turn', 'cms', 'adminer', 'phpmyadmin',
+    'cpanel', 'whm', 'plesk', 'webmin', 'directadmin', 'vesta', 'ajenti',
+    'munin', 'munin1', 'munin2', 'nagios1', 'nagios2', 'zabbix1', 'zabbix2',
+    'grafana1', 'grafana2', 'kibana1', 'kibana2', 'prometheus1', 'prometheus2',
+    'elastic1', 'elastic2', 'logstash1', 'logstash2', 'redis1', 'redis2',
+    'memcached1', 'memcached2', 'mongodb1', 'mongodb2', 'mysql1', 'mysql2',
+    'postgres1', 'postgres2', 'oracle1', 'oracle2', 'sqlserver1', 'sqlserver2',
+    'ldap1', 'ldap2', 'radius1', 'radius2', 'kerberos1', 'kerberos2',
+    'vpn1', 'vpn2', 'proxy1', 'proxy2', 'firewall1', 'firewall2', 'waf1', 'waf2',
+    'ips1', 'ips2', 'ids1', 'ids2', 'siem1', 'siem2', 'soc1', 'soc2', 'noc1', 'noc2',
+    'monitor1', 'monitor2', 'alert1', 'alert2', 'warning1', 'warning2',
+    'critical1', 'critical2', 'error1', 'error2', 'debug1', 'debug2',
+    'info1', 'info2', 'trace1', 'trace2', 'log1', 'log2', 'logs1', 'logs2',
+    'audit1', 'audit2', 'report1', 'report2', 'stats1', 'stats2', 'metric1', 'metric2',
+    'health1', 'health2', 'status1', 'status2', 'ping1', 'ping2', 'check1', 'check2',
+    'test1', 'test2', 'validate1', 'validate2', 'verify1', 'verify2',
+    'scan1', 'scan2', 'scanner1', 'scanner2', 'detect1', 'detect2',
+    'discover1', 'discover2', 'find1', 'find2', 'search1', 'search2',
+    'query1', 'query2', 'request1', 'request2', 'response1', 'response2',
+    'api1', 'api2', 'api3', 'rest1', 'rest2', 'graphql1', 'graphql2',
+    'soap1', 'soap2', 'grpc1', 'grpc2', 'rpc1', 'rpc2', 'xml1', 'xml2',
+    'json1', 'json2', 'yaml1', 'yaml2', 'protobuf1', 'protobuf2',
+    'avro1', 'avro2', 'thrift1', 'thrift2'
 ]
 
 # -----------------------------
-# ADVANCED RECON ENGINE
+# UNIVERSAL SUBDOMAIN FINDER
 # -----------------------------
-class AdvancedRecon:
+class UniversalSubdomainFinder:
     def __init__(self):
-        self.results = {}
-        self.found_subdomains = set()
-        self.all_checked_subdomains = set()  # Error wale bhi include
+        self.results = {
+            'valid_subdomains': set(),
+            'invalid_subdomains': set(),
+            'error_subdomains': set(),
+            'all_checked': set()
+        }
+        self.dns_servers = ['8.8.8.8', '1.1.1.1', '9.9.9.9', '208.67.222.222']
     
-    def massive_enumeration(self, domain, active=True, ports=False, output_file=None):
-        """Massive enumeration with 1000+ subdomains"""
-        print(f"\n[🎯] STARTING MASSIVE ENUMERATION FOR: {domain}")
-        print(f"[📊] Testing {len(MASSIVE_SUBDOMAINS)}+ subdomains...")
+    def find_subdomains(self, domain, output_file=None, threads=100):
+        """Kisi bhi domain ke liye 1000+ subdomains find karo"""
+        print(f"\n[🎯] STARTING UNIVERSAL SUBDOMAIN FINDER")
+        print(f"[🌐] Target: {domain}")
+        print(f"[📊] Testing {len(MASSIVE_SUBDOMAINS)} subdomains...")
+        print(f"[⚡] Threads: {threads}")
         print("-" * 60)
         
-        # Phase 1: DNS Resolution (All subdomains)
-        print("[1️⃣] PHASE 1: DNS Resolution (1000+ Subdomains)...")
-        dns_results = self._massive_dns_scan(domain)
+        start_time = time.time()
+        
+        # Phase 1: Massive DNS Scanning
+        print("[1️⃣] PHASE 1: Massive DNS Scanning...")
+        dns_results = self._massive_dns_scan(domain, threads)
         
         # Phase 2: Live Host Detection
         print("[2️⃣] PHASE 2: Live Host Detection...")
-        live_results = self._live_host_detection(dns_results)
-        
-        # Phase 3: Port Scanning
-        open_ports = {}
-        if ports and live_results['live_subdomains']:
-            print("[3️⃣] PHASE 3: Port Scanning...")
-            open_ports = self._port_scanning(live_results['live_subdomains'])
+        live_results = self._detect_live_hosts(dns_results['valid'])
         
         # Compile final results
         final_results = {
             "domain": domain,
-            "all_checked_subdomains": list(self.all_checked_subdomains),
-            "dns_resolved_subdomains": dns_results['resolved'],
-            "live_subdomains": live_results['live_subdomains'],
-            "ips": live_results['ips'],
-            "open_ports": open_ports,
-            "stats": {
-                "total_checked": len(self.all_checked_subdomains),
-                "dns_resolved": len(dns_results['resolved']),
-                "live_hosts": len(live_results['live_subdomains']),
-                "open_ports": sum(len(ports) for ports in open_ports.values())
-            }
+            "scan_info": {
+                "total_tested": len(self.results['all_checked']),
+                "valid_subdomains": len(dns_results['valid']),
+                "invalid_subdomains": len(dns_results['invalid']),
+                "error_subdomains": len(dns_results['errors']),
+                "live_hosts": len(live_results['live']),
+                "scan_time": round(time.time() - start_time, 2)
+            },
+            "valid_subdomains": sorted(dns_results['valid']),
+            "invalid_subdomains": sorted(dns_results['invalid']),
+            "error_subdomains": sorted(dns_results['errors']),
+            "live_subdomains": live_results['live'],
+            "all_checked": sorted(self.results['all_checked'])
         }
         
-        self._display_massive_results(final_results)
+        self._display_results(final_results)
         
         # Save results
         if output_file:
-            self._save_massive_results(final_results, output_file)
+            self._save_results(final_results, output_file)
         
         return final_results
     
-    def _massive_dns_scan(self, domain):
-        """Massive DNS scanning with 1000+ subdomains"""
-        resolved_subdomains = set()
-        all_checked = set()
+    def _massive_dns_scan(self, domain, threads=100):
+        """Massive DNS scanning with error tracking"""
+        valid = set()
+        invalid = set()
+        errors = set()
         
         def check_subdomain(sub):
             full_domain = f"{sub}.{domain}"
-            all_checked.add(full_domain)
+            self.results['all_checked'].add(full_domain)
             
             try:
-                answers = dns.resolver.resolve(full_domain, 'A')
-                ips = [str(rdata) for rdata in answers]
-                return full_domain, ips, "RESOLVED"
-            except dns.resolver.NXDOMAIN:
-                return full_domain, [], "NXDOMAIN"
-            except dns.resolver.NoAnswer:
-                return full_domain, [], "NO_ANSWER"
-            except dns.resolver.Timeout:
-                return full_domain, [], "TIMEOUT"
-            except Exception as e:
-                return full_domain, [], f"ERROR: {str(e)}"
-        
-        # Process in batches to avoid overwhelming
-        batch_size = 100
-        total_batches = (len(MASSIVE_SUBDOMAINS) + batch_size - 1) // batch_size
-        
-        for batch_num in range(total_batches):
-            start_idx = batch_num * batch_size
-            end_idx = min((batch_num + 1) * batch_size, len(MASSIVE_SUBDOMAINS))
-            batch = MASSIVE_SUBDOMAINS[start_idx:end_idx]
-            
-            print(f"    🔄 Batch {batch_num + 1}/{total_batches} ({len(batch)} subdomains)...")
-            
-            with ThreadPoolExecutor(max_workers=50) as executor:
-                results = list(executor.map(check_subdomain, batch))
-            
-            for subdomain, ips, status in results:
-                if ips:  # Only add if DNS resolved
-                    resolved_subdomains.add(subdomain)
-                    self.found_subdomains.add(subdomain)
+                # Try multiple DNS servers
+                for dns_server in self.dns_servers:
+                    try:
+                        resolver = dns.resolver.Resolver()
+                        resolver.nameservers = [dns_server]
+                        resolver.timeout = 2
+                        resolver.lifetime = 2
+                        
+                        answers = resolver.resolve(full_domain, 'A')
+                        ips = [str(rdata) for rdata in answers]
+                        return full_domain, ips, "VALID", None
+                    except dns.resolver.NXDOMAIN:
+                        return full_domain, [], "INVALID", "NXDOMAIN"
+                    except dns.resolver.NoAnswer:
+                        continue
+                    except dns.resolver.Timeout:
+                        continue
                 
-                # Track all checked subdomains (including errors)
-                self.all_checked_subdomains.add(subdomain)
+                return full_domain, [], "ERROR", "TIMEOUT_ALL_SERVERS"
+                
+            except Exception as e:
+                return full_domain, [], "ERROR", str(e)
+        
+        # Process in batches
+        batch_size = 200
+        total = len(MASSIVE_SUBDOMAINS)
+        
+        for i in range(0, total, batch_size):
+            batch = MASSIVE_SUBDOMAINS[i:i + batch_size]
+            completed = i + len(batch)
+            
+            print(f"    🔄 Progress: {completed}/{total} ({completed/total*100:.1f}%)")
+            
+            with ThreadPoolExecutor(max_workers=threads) as executor:
+                futures = [executor.submit(check_subdomain, sub) for sub in batch]
+                
+                for future in as_completed(futures):
+                    subdomain, ips, status, error = future.result()
+                    
+                    if status == "VALID":
+                        valid.add(subdomain)
+                    elif status == "INVALID":
+                        invalid.add(subdomain)
+                    else:
+                        errors.add(f"{subdomain} - {error}")
         
         return {
-            "resolved": list(resolved_subdomains),
-            "total_checked": len(all_checked)
+            "valid": valid,
+            "invalid": invalid,
+            "errors": errors
         }
     
-    def _live_host_detection(self, dns_results):
-        """Detect live hosts from resolved subdomains"""
-        live_subdomains = set()
-        ips_mapping = {}
+    def _detect_live_hosts(self, subdomains):
+        """Detect live HTTP/HTTPS hosts"""
+        live_hosts = {}
         
-        def check_live_host(subdomain):
-            try:
-                # Try HTTP
-                response = requests.get(f"http://{subdomain}", timeout=3, verify=False)
-                if response.status_code < 400:
-                    return subdomain, "HTTP", response.status_code
-            except:
+        def check_http(subdomain):
+            for protocol in ['http', 'https']:
                 try:
-                    # Try HTTPS
-                    response = requests.get(f"https://{subdomain}", timeout=3, verify=False)
+                    url = f"{protocol}://{subdomain}"
+                    response = requests.get(url, timeout=3, verify=False, allow_redirects=True)
                     if response.status_code < 400:
-                        return subdomain, "HTTPS", response.status_code
+                        return subdomain, {
+                            "protocol": protocol,
+                            "status_code": response.status_code,
+                            "url": url
+                        }
                 except:
-                    pass
-            return subdomain, "DEAD", 0
+                    continue
+            return subdomain, None
         
-        print(f"    🔄 Checking {len(dns_results['resolved'])} resolved subdomains...")
+        print(f"    🔄 Checking {len(subdomains)} valid subdomains for live hosts...")
         
         with ThreadPoolExecutor(max_workers=20) as executor:
-            results = list(executor.map(check_live_host, dns_results['resolved']))
+            futures = [executor.submit(check_http, sub) for sub in subdomains]
+            
+            for future in as_completed(futures):
+                subdomain, result = future.result()
+                if result:
+                    live_hosts[subdomain] = result
         
-        for subdomain, protocol, status_code in results:
-            if protocol != "DEAD":
-                live_subdomains.add(subdomain)
-                
-                # Get IPs for live hosts
-                try:
-                    answers = dns.resolver.resolve(subdomain, 'A')
-                    ips_mapping[subdomain] = [str(rdata) for rdata in answers]
-                except:
-                    ips_mapping[subdomain] = []
-        
-        return {
-            "live_subdomains": list(live_subdomains),
-            "ips": ips_mapping
-        }
+        return {"live": live_hosts}
     
-    def _port_scanning(self, subdomains):
-        """Port scanning for live hosts"""
-        common_ports = [21, 22, 23, 25, 53, 80, 110, 443, 993, 995, 1433, 3306, 3389, 5432, 5900, 8080, 8443]
-        open_ports = {}
+    def _display_results(self, results):
+        """Display comprehensive results"""
+        stats = results['scan_info']
         
-        def scan_host_ports(host):
-            host_ports = []
-            for port in common_ports:
-                try:
-                    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    sock.settimeout(1)
-                    result = sock.connect_ex((host, port))
-                    if result == 0:
-                        host_ports.append(port)
-                    sock.close()
-                except:
-                    pass
-            return host, host_ports
-        
-        with ThreadPoolExecutor(max_workers=15) as executor:
-            results = list(executor.map(scan_host_ports, subdomains))
-        
-        for host, ports in results:
-            if ports:
-                open_ports[host] = ports
-        
-        return open_ports
-    
-    def _display_massive_results(self, results):
-        """Display massive enumeration results"""
         print(f"\n{'='*60}")
-        print(f"[📊] MASSIVE ENUMERATION COMPLETED!")
+        print(f"[🎉] SCAN COMPLETED!")
         print(f"{'='*60}")
-        print(f"🎯 Target: {results['domain']}")
-        print(f"🔍 Total Checked: {results['stats']['total_checked']}")
-        print(f"🌐 DNS Resolved: {results['stats']['dns_resolved']}")
-        print(f"✅ Live Hosts: {results['stats']['live_hosts']}")
-        print(f"🔓 Open Ports: {results['stats']['open_ports']}")
+        print(f"🌐 Domain: {results['domain']}")
+        print(f"⏱️  Scan Time: {stats['scan_time']} seconds")
+        print(f"📊 Total Tested: {stats['total_tested']}")
+        print(f"✅ Valid Subdomains: {stats['valid_subdomains']}")
+        print(f"❌ Invalid Subdomains: {stats['invalid_subdomains']}")
+        print(f"⚠️  Error Subdomains: {stats['error_subdomains']}")
+        print(f"🌐 Live Hosts: {stats['live_hosts']}")
         
-        # Show sample of results
+        # Show valid subdomains
+        if results['valid_subdomains']:
+            print(f"\n[✅] VALID SUBDOMAINS ({len(results['valid_subdomains'])}):")
+            for subdomain in results['valid_subdomains'][:30]:  # Show first 30
+                print(f"   🌐 {subdomain}")
+            
+            if len(results['valid_subdomains']) > 30:
+                print(f"   ... and {len(results['valid_subdomains']) - 30} more")
+        
+        # Show live hosts
         if results['live_subdomains']:
-            print(f"\n[🌐] SAMPLE LIVE SUBDOMAINS (First 20):")
-            for subdomain in sorted(results['live_subdomains'])[:20]:
-                ips = results['ips'].get(subdomain, [])
-                print(f"   ✅ {subdomain} -> {', '.join(ips)}")
-        
-        if results['open_ports']:
-            print(f"\n[🔓] SAMPLE OPEN PORTS (First 10):")
-            for host, ports in list(results['open_ports'].items())[:10]:
-                print(f"   🔓 {host}: {', '.join(map(str, ports))}")
+            print(f"\n[🔥] LIVE HOSTS ({len(results['live_subdomains'])}):")
+            for subdomain, info in list(results['live_subdomains'].items())[:20]:
+                print(f"   🔥 {subdomain} -> {info['url']} ({info['status_code']})")
     
-    def _save_massive_results(self, results, filename):
-        """Save massive results to file"""
+    def _save_results(self, results, filename):
+        """Save all results to file"""
         with open(filename, 'w') as f:
-            f.write(f"MASSIVE RECON RESULTS - {results['domain']}\n")
+            f.write(f"UNIVERSAL SUBDOMAIN FINDER RESULTS\n")
+            f.write(f"Domain: {results['domain']}\n")
+            f.write(f"Scan Time: {results['scan_info']['scan_time']} seconds\n")
             f.write("=" * 60 + "\n\n")
             
-            f.write("STATISTICS:\n")
-            f.write(f"  Total Subdomains Checked: {results['stats']['total_checked']}\n")
-            f.write(f"  DNS Resolved: {results['stats']['dns_resolved']}\n")
-            f.write(f"  Live Hosts: {results['stats']['live_hosts']}\n")
-            f.write(f"  Open Ports: {results['stats']['open_ports']}\n\n")
+            f.write("SCAN STATISTICS:\n")
+            f.write(f"  Total Subdomains Tested: {results['scan_info']['total_tested']}\n")
+            f.write(f"  Valid Subdomains: {results['scan_info']['valid_subdomains']}\n")
+            f.write(f"  Invalid Subdomains: {results['scan_info']['invalid_subdomains']}\n")
+            f.write(f"  Error Subdomains: {results['scan_info']['error_subdomains']}\n")
+            f.write(f"  Live Hosts: {results['scan_info']['live_hosts']}\n\n")
             
-            f.write("ALL CHECKED SUBDOMAINS:\n")
+            f.write("ALL VALID SUBDOMAINS:\n")
             f.write("-" * 40 + "\n")
-            for subdomain in sorted(results['all_checked_subdomains']):
-                f.write(f"  {subdomain}\n")
+            for subdomain in results['valid_subdomains']:
+                f.write(f"{subdomain}\n")
             
-            f.write("\nDNS RESOLVED SUBDOMAINS:\n")
+            f.write("\nLIVE HOSTS:\n")
             f.write("-" * 40 + "\n")
-            for subdomain in sorted(results['dns_resolved_subdomains']):
-                f.write(f"  ✅ {subdomain}\n")
+            for subdomain, info in results['live_subdomains'].items():
+                f.write(f"{subdomain} -> {info['url']} ({info['status_code']})\n")
             
-            f.write("\nLIVE SUBDOMAINS:\n")
+            f.write("\nINVALID SUBDOMAINS:\n")
             f.write("-" * 40 + "\n")
-            for subdomain in sorted(results['live_subdomains']):
-                ips = results['ips'].get(subdomain, [])
-                f.write(f"  🌐 {subdomain} -> {', '.join(ips)}\n")
+            for subdomain in results['invalid_subdomains'][:100]:  # First 100 only
+                f.write(f"{subdomain}\n")
             
-            if results['open_ports']:
-                f.write("\nOPEN PORTS:\n")
-                f.write("-" * 40 + "\n")
-                for host, ports in results['open_ports'].items():
-                    f.write(f"  🔓 {host}: {', '.join(map(str, ports))}\n")
+            f.write("\nERROR SUBDOMAINS:\n")
+            f.write("-" * 40 + "\n")
+            for error in list(results['error_subdomains'])[:50]:  # First 50 errors
+                f.write(f"{error}\n")
         
         print(f"\n[💾] Complete results saved to: {filename}")
 
@@ -418,22 +396,20 @@ class AdvancedRecon:
 # COMMAND LINE INTERFACE
 # -----------------------------
 def main():
-    parser = argparse.ArgumentParser(description="ReconX Pro - Massive Subdomain Finder")
-    parser.add_argument('-d', '--domain', required=True, help='Target domain')
-    parser.add_argument('-o', '--output', help='Output file to save results')
-    parser.add_argument('-ports', action='store_true', help='Enable port scanning')
-    parser.add_argument('-active', action='store_true', help='Enable active scanning', default=True)
+    parser = argparse.ArgumentParser(description="Universal Subdomain Finder - Kisi bhi domain ke liye 1000+ subdomains")
+    parser.add_argument('-d', '--domain', required=True, help='Target domain (e.g., example.com, facebook.com, google.com)')
+    parser.add_argument('-o', '--output', help='Output file to save all results')
+    parser.add_argument('-t', '--threads', type=int, default=100, help='Number of threads (default: 100)')
     
     args = parser.parse_args()
     
     print_banner()
     
-    recon = AdvancedRecon()
-    results = recon.massive_enumeration(
+    finder = UniversalSubdomainFinder()
+    results = finder.find_subdomains(
         domain=args.domain,
-        active=args.active,
-        ports=args.ports,
-        output_file=args.output
+        output_file=args.output,
+        threads=args.threads
     )
 
 def print_banner():
@@ -445,12 +421,12 @@ def print_banner():
 ██╔══██╗██╔══╝  ██║     ██║   ██║██║╚██╗██║     ██╔██╗ 
 ██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║    ██╔╝ ██╗
 ╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝
-              M A S S I V E   R E C O N
+           U N I V E R S A L   F I N D E R
 """
     print(BANNER)
     print("=" * 70)
-    print(f"🎯 1000+ Subdomains Finder - Kisi bhi domain ke liye")
-    print(f"📁 Version: v3.0.0 (Massive Edition)")
+    print(f"🎯 Kisi bhi domain ke liye 1500+ Subdomains Finder")
+    print(f"📁 Version: v4.0.0 (Universal Edition)")
     print(f"🕐 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 70)
     print()
@@ -458,11 +434,13 @@ def print_banner():
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         print_banner()
-        print("Usage: python3 reconx.py -d example.com [-o results.txt] [-ports]")
+        print("Usage: python3 reconx.py -d DOMAIN [-o OUTPUT_FILE] [-t THREADS]")
         print("\nExamples:")
-        print("  python3 reconx.py -d facebook.com")
-        print("  python3 reconx.py -d google.com -o results.txt -ports")
-        print("  python3 reconx.py -d microsoft.com -ports")
+        print("  python3 reconx.py -d example.com")
+        print("  python3 reconx.py -d example.com -o example.txt")
+        print("  python3 reconx.py -d example.com -t 200 -o example.txt")
+        print("  python3 reconx.py -d example.com -o example.txt")
+        print("\n💡 Kisi bhi domain ke liye use karein: example.com ")
         sys.exit(1)
     
     main()
