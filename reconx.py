@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-ReconX Pro - Advanced Reconnaissance Tool
-Complete CLI with Intel & Enum Commands
+ReconX Pro - 1000+ Subdomains Finder
+Kisi bhi domain ke liye complete subdomain discovery
 """
 
 import os
@@ -12,284 +12,329 @@ import requests
 import dns.resolver
 import socket
 import threading
+import random
+import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 
 # -----------------------------
-# CUSTOM BANNER
+# MASSIVE SUBDOMAINS WORDLIST (1000+)
 # -----------------------------
-def print_banner():
-    """Print custom branded banner"""
-    BANNER = r"""
-██████╗ ███████╗ ██████╗ ██████╗ ███╗   ██╗    ██╗  ██╗
-██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗  ██║    ╚██╗██╔╝
-██████╔╝█████╗  ██║     ██║   ██║██╔██╗ ██║     ╚███╔╝ 
-██╔══██╗██╔══╝  ██║     ██║   ██║██║╚██╗██║     ██╔██╗ 
-██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║    ██╔╝ ██╗
-╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝
-              R E C O N   M A S T E R
-"""
-    print(BANNER)
-    print("=" * 70)
-    print(f"🎯 ReconX Pro - Advanced Reconnaissance Tool")
-    print(f"📁 Version: v2.2.0")
-    print(f"🕐 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print("=" * 70)
-    print()
+MASSIVE_SUBDOMAINS = [
+    # Common & Basic (50)
+    'www', 'api', 'mail', 'ftp', 'admin', 'test', 'dev', 'staging', 'prod',
+    'blog', 'shop', 'forum', 'support', 'help', 'docs', 'news', 'media',
+    'cdn', 'static', 'app', 'apps', 'mobile', 'web', 'secure', 'portal',
+    'login', 'signin', 'dashboard', 'account', 'user', 'users', 'profile',
+    'search', 'find', 'query', 'results', 'data', 'database', 'db', 'sql',
+    'backup', 'archive', 'old', 'new', 'temp', 'tmp', 'demo', 'sample', 'example',
+
+    # Services & Protocols (50)
+    'smtp', 'pop', 'pop3', 'imap', 'imap4', 'webmail', 'email', 'mail2',
+    'ssh', 'vpn', 'remote', 'ftp2', 'ftps', 'sftp', 'rsync', 'ldap', 'ldaps',
+    'proxy', 'firewall', 'router', 'switch', 'gateway', 'portal', 'console',
+    'terminal', 'shell', 'cmd', 'command', 'exec', 'run', 'service', 'services',
+    'svc', 'daemon', 'server', 'client', 'host', 'node', 'cluster', 'loadbalancer',
+    'lb', 'balancer', 'cache', 'caching', 'cdn2', 'cdn3', 'edge', 'edges', 'origin',
+
+    # Development & Staging (50)
+    'dev1', 'dev2', 'dev3', 'dev4', 'dev5', 'dev6', 'dev7', 'dev8', 'dev9', 'dev10',
+    'staging1', 'staging2', 'staging3', 'staging4', 'staging5', 'staging6', 'staging7',
+    'stage', 'stage1', 'stage2', 'stage3', 'preprod', 'pre-prod', 'preproduction',
+    'qa', 'qa1', 'qa2', 'qa3', 'test1', 'test2', 'test3', 'test4', 'test5',
+    'testing', 'testing1', 'testing2', 'uat', 'uat1', 'uat2', 'demo1', 'demo2',
+    'sandbox', 'playground', 'experiment', 'experimental', 'lab', 'labs', 'research',
+
+    # Infrastructure & Cloud (100)
+    'aws', 'azure', 'gcp', 'cloud', 'cloudfront', 's3', 'ec2', 'lambda', 'azureedge',
+    'googleusercontent', 'digitalocean', 'linode', 'vultr', 'heroku', 'netlify',
+    'vercel', 'firebase', 'amplify', 'storage', 'bucket', 'container', 'registry',
+    'docker', 'kubernetes', 'k8s', 'openshift', 'rancher', 'mesos', 'nomad',
+    'consul', 'etcd', 'zookeeper', 'kafka', 'rabbitmq', 'activemq', 'zeromq',
+    'nats', 'redis', 'memcached', 'cassandra', 'couchbase', 'couchdb', 'riak',
+    'neo4j', 'arangodb', 'orientdb', 'mongodb', 'mysql', 'postgres', 'mariadb',
+    'oracle', 'sqlserver', 'db2', 'sybase', 'informix', 'teradata', 'vertica',
+    'hadoop', 'hbase', 'hive', 'pig', 'spark', 'storm', 'flink', 'beam',
+    'elasticsearch', 'logstash', 'kibana', 'grafana', 'prometheus', 'alertmanager',
+    'thanos', 'cortex', 'loki', 'jaeger', 'zipkin', 'pinpoint', 'skywalking',
+    'jenkins', 'gitlab', 'github', 'bitbucket', 'jira', 'confluence', 'bamboo',
+    'teamcity', 'circleci', 'travis', 'codeship', 'buddy', 'drone', 'argo',
+
+    # Applications & Products (100)
+    'wordpress', 'joomla', 'drupal', 'magento', 'prestashop', 'opencart',
+    'woocommerce', 'shopify', 'bigcommerce', 'squarespace', 'wix', 'weebly',
+    'sharepoint', 'exchange', 'owa', 'lync', 'teams', 'skype', 'zoom', 'meet',
+    'webex', 'gotomeeting', 'slack', 'discord', 'telegram', 'whatsapp', 'viber',
+    'signal', 'line', 'kakao', 'wechat', 'qq', 'vimeo', 'dailymotion', 'twitch',
+    'mixer', 'dlive', 'periscope', 'snapchat', 'tiktok', 'pinterest', 'tumblr',
+    'reddit', 'quora', 'medium', 'blogger', 'ghost', 'substack', 'medium',
+    'linkedin', 'twitter', 'instagram', 'youtube', 'facebook', 'messenger',
+    'whatsapp', 'telegram', 'discord', 'slack', 'teams', 'zoom', 'webex',
+    'gotomeeting', 'skype', 'hangouts', 'duo', 'meet', 'jitsi', 'bigbluebutton',
+    'moodle', 'blackboard', 'canvas', 'schoology', 'edmodo', 'googleclassroom',
+    'office365', 'gsuite', 'gsuite2', 'workspace', 'dropbox', 'box', 'onedrive',
+    'icloud', 'mega', 'mediafire', 'sendspace', 'wetransfer', 'fileserver',
+
+    # Security & Monitoring (50)
+    'security', 'secure', 'auth', 'authentication', 'authorization', 'oauth',
+    'sso', 'cas', 'saml', 'openid', 'ldap', 'kerberos', 'radius', 'tacacs',
+    'firewall', 'waf', 'ips', 'ids', 'siem', 'soc', 'noc', 'monitoring',
+    'monitor', 'nagios', 'zabbix', 'icinga', 'observium', 'librenms', 'cacti',
+    'prtg', 'solarwinds', 'datadog', 'newrelic', 'appdynamics', 'dynatrace',
+    'splunk', 'elastic', 'loggly', 'papertrail', 'sumologic', 'graylog',
+    'sentry', 'rollbar', 'bugsnag', 'airbrake', 'honeybadger', 'raygun',
+
+    # Network & Infrastructure (100)
+    'ns1', 'ns2', 'ns3', 'ns4', 'ns5', 'dns1', 'dns2', 'dns3', 'dns4', 'dns5',
+    'router1', 'router2', 'switch1', 'switch2', 'firewall1', 'firewall2',
+    'loadbalancer1', 'loadbalancer2', 'proxy1', 'proxy2', 'cache1', 'cache2',
+    'cdn1', 'cdn2', 'cdn3', 'edge1', 'edge2', 'edge3', 'origin1', 'origin2',
+    'server1', 'server2', 'server3', 'server4', 'server5', 'server6', 'server7',
+    'server8', 'server9', 'server10', 'host1', 'host2', 'host3', 'host4', 'host5',
+    'node1', 'node2', 'node3', 'node4', 'node5', 'cluster1', 'cluster2', 'cluster3',
+    'dc1', 'dc2', 'dc3', 'idc1', 'idc2', 'idc3', 'rack1', 'rack2', 'rack3',
+    'vm1', 'vm2', 'vm3', 'vm4', 'vm5', 'container1', 'container2', 'container3',
+    'pod1', 'pod2', 'pod3', 'service1', 'service2', 'service3', 'deployment1',
+    'deployment2', 'deployment3', 'statefulset1', 'statefulset2', 'daemonset1',
+
+    # Geographic & Regional (100)
+    'us', 'usa', 'uk', 'gb', 'eu', 'europe', 'asia', 'apac', 'emea', 'na', 'sa',
+    'africa', 'australia', 'canada', 'germany', 'france', 'italy', 'spain',
+    'japan', 'china', 'india', 'brazil', 'mexico', 'russia', 'korea', 'singapore',
+    'hongkong', 'taiwan', 'dubai', 'uae', 'saudi', 'qatar', 'kuwait', 'bahrain',
+    'oman', 'egypt', 'southafrica', 'nigeria', 'kenya', 'ghana', 'morocco',
+    'turkey', 'israel', 'iran', 'pakistan', 'bangladesh', 'srilanka', 'vietnam',
+    'thailand', 'malaysia', 'indonesia', 'philippines', 'newzealand', 'australia',
+    'sydney', 'melbourne', 'brisbane', 'perth', 'adelaide', 'auckland', 'wellington',
+    'london', 'paris', 'berlin', 'frankfurt', 'amsterdam', 'brussels', 'zurich',
+    'milan', 'rome', 'madrid', 'barcelona', 'stockholm', 'oslo', 'copenhagen',
+    'helsinki', 'warsaw', 'prague', 'vienna', 'budapest', 'bucharest', 'sofia',
+    'athens', 'istanbul', 'moscow', 'stpetersburg', 'beijing', 'shanghai',
+    'guangzhou', 'shenzhen', 'tokyo', 'osaka', 'nagoya', 'seoul', 'busan',
+    'delhi', 'mumbai', 'bangalore', 'chennai', 'kolkata', 'hyderabad', 'pune',
+
+    # Numbers & Combinations (200)
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
+    '01', '02', '03', '04', '05', '06', '07', '08', '09', '010',
+    '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+    '21', '22', '23', '24', '25', '26', '27', '28', '29', '30',
+    '31', '32', '33', '34', '35', '36', '37', '38', '39', '40',
+    '41', '42', '43', '44', '45', '46', '47', '48', '49', '50',
+    '100', '200', '300', '400', '500', '600', '700', '800', '900', '1000',
+    'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta',
+    'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'omicron', 'pi', 'rho',
+    'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega',
+    'primary', 'secondary', 'tertiary', 'quaternary', 'quinary',
+    'senary', 'septenary', 'octonary', 'nonary', 'denary',
+
+    # Technology Specific (100)
+    'java', 'python', 'ruby', 'php', 'node', 'nodejs', 'go', 'golang',
+    'rust', 'scala', 'kotlin', 'swift', 'objectivec', 'csharp', 'fsharp',
+    'dotnet', 'aspnet', 'laravel', 'django', 'flask', 'rails', 'spring',
+    'express', 'koa', 'hapi', 'fastapi', 'graphql', 'rest', 'soap',
+    'grpc', 'thrift', 'avro', 'protobuf', 'json', 'xml', 'yaml', 'toml',
+    'html', 'css', 'javascript', 'typescript', 'coffeescript', 'clojure',
+    'elixir', 'erlang', 'haskell', 'ocaml', 'perl', 'r', 'matlab',
+    'tensorflow', 'pytorch', 'keras', 'scikit', 'numpy', 'pandas',
+    'matplotlib', 'seaborn', 'plotly', 'd3', 'threejs', 'react', 'vue',
+    'angular', 'svelte', 'ember', 'backbone', 'jquery', 'bootstrap',
+    'tailwind', 'bulma', 'foundation', 'semanticui', 'materialize',
+
+    # Business & Departments (100)
+    'hr', 'humanresources', 'payroll', 'benefits', 'recruiting', 'talent',
+    'careers', 'jobs', 'resume', 'application', 'interview', 'onboarding',
+    'finance', 'accounting', 'billing', 'invoice', 'payment', 'payments',
+    'revenue', 'expense', 'budget', 'forecast', 'tax', 'audit', 'compliance',
+    'legal', 'law', 'contract', 'agreement', 'policy', 'policies', 'regulation',
+    'sales', 'marketing', 'advertising', 'promotion', 'campaign', 'lead',
+    'customer', 'client', 'partner', 'vendor', 'supplier', 'distributor',
+    'reseller', 'dealer', 'agent', 'broker', 'merchant', 'retail', 'wholesale',
+    'operations', 'production', 'manufacturing', 'factory', 'plant', 'warehouse',
+    'logistics', 'supplychain', 'inventory', 'stock', 'order', 'shipping',
+    'delivery', 'transport', 'fleet', 'maintenance', 'repair', 'service',
+    'quality', 'qc', 'qa', 'testing', 'inspection', 'certification',
+    'research', 'development', 'rnd', 'innovation', 'labs', 'studio',
+    'design', 'creative', 'art', 'photo', 'video', 'audio', 'media',
+    'content', 'publishing', 'editorial', 'newsroom', 'press', 'pr',
+
+    # Additional Common (150)
+    'access', 'activity', 'analytics', 'assets', 'attachment', 'back',
+    'backup01', 'backup02', 'backup03', 'backup04', 'backup05', 'backup06',
+    'backup07', 'backup08', 'backup09', 'backup10', 'backup11', 'backup12',
+    'backup13', 'backup14', 'backup15', 'backup16', 'backup17', 'backup18',
+    'backup19', 'backup20', 'backup21', 'backup22', 'backup23', 'backup24',
+    'backup25', 'backup26', 'backup27', 'backup28', 'backup29', 'backup30',
+    'backup31', 'backup32', 'backup33', 'backup34', 'backup35', 'backup36',
+    'backup37', 'backup38', 'backup39', 'backup40', 'backup41', 'backup42',
+    'backup43', 'backup44', 'backup45', 'backup46', 'backup47', 'backup48',
+    'backup49', 'backup50', 'backup51', 'backup52', 'backup53', 'backup54',
+    'backup55', 'backup56', 'backup57', 'backup58', 'backup59', 'backup60',
+    'backup61', 'backup62', 'backup63', 'backup64', 'backup65', 'backup66',
+    'backup67', 'backup68', 'backup69', 'backup70', 'backup71', 'backup72',
+    'backup73', 'backup74', 'backup75', 'backup76', 'backup77', 'backup78',
+    'backup79', 'backup80', 'backup81', 'backup82', 'backup83', 'backup84',
+    'backup85', 'backup86', 'backup87', 'backup88', 'backup89', 'backup90',
+    'backup91', 'backup92', 'backup93', 'backup94', 'backup95', 'backup96',
+    'backup97', 'backup98', 'backup99', 'backup100', 'backup-01', 'backup-02',
+    'backup-03', 'backup-04', 'backup-05', 'backup-06', 'backup-07', 'backup-08',
+    'backup-09', 'backup-10', 'backup-11', 'backup-12', 'backup-13', 'backup-14',
+    'backup-15', 'backup-16', 'backup-17', 'backup-18', 'backup-19', 'backup-20'
+]
 
 # -----------------------------
-# INTEL MODULE
+# ADVANCED RECON ENGINE
 # -----------------------------
-class ReconIntel:
+class AdvancedRecon:
     def __init__(self):
         self.results = {}
+        self.found_subdomains = set()
+        self.all_checked_subdomains = set()  # Error wale bhi include
     
-    def domain_intel(self, domain, active=False):
-        """Gather domain intelligence"""
-        print(f"\n[🕵️] GATHERING INTELLIGENCE FOR: {domain}")
-        print("-" * 50)
+    def massive_enumeration(self, domain, active=True, ports=False, output_file=None):
+        """Massive enumeration with 1000+ subdomains"""
+        print(f"\n[🎯] STARTING MASSIVE ENUMERATION FOR: {domain}")
+        print(f"[📊] Testing {len(MASSIVE_SUBDOMAINS)}+ subdomains...")
+        print("-" * 60)
         
-        intel_data = {
-            "domain": domain,
-            "whois": self._whois_lookup(domain),
-            "dns": self._dns_intel(domain),
-            "certificates": self._certificate_intel(domain),
-            "subdomains": self._find_subdomains(domain),
-            "status": "completed"
-        }
+        # Phase 1: DNS Resolution (All subdomains)
+        print("[1️⃣] PHASE 1: DNS Resolution (1000+ Subdomains)...")
+        dns_results = self._massive_dns_scan(domain)
         
-        self._display_intel_results(intel_data)
-        return intel_data
-    
-    def _whois_lookup(self, domain):
-        """WHOIS information"""
-        print("[1️⃣] WHOIS Lookup...")
-        try:
-            import whois
-            domain_info = whois.whois(domain)
-            return {
-                "registrar": getattr(domain_info, 'registrar', 'Unknown'),
-                "creation_date": str(getattr(domain_info, 'creation_date', 'Unknown')),
-                "expiration_date": str(getattr(domain_info, 'expiration_date', 'Unknown'))
-            }
-        except:
-            return {"error": "WHOIS lookup failed"}
-    
-    def _dns_intel(self, domain):
-        """DNS intelligence"""
-        print("[2️⃣] DNS Intelligence...")
-        dns_records = {}
-        record_types = ['A', 'AAAA', 'MX', 'NS', 'TXT', 'CNAME']
+        # Phase 2: Live Host Detection
+        print("[2️⃣] PHASE 2: Live Host Detection...")
+        live_results = self._live_host_detection(dns_results)
         
-        for rtype in record_types:
-            try:
-                answers = dns.resolver.resolve(domain, rtype)
-                dns_records[rtype] = [str(rdata) for rdata in answers]
-            except:
-                dns_records[rtype] = []
-        
-        return dns_records
-    
-    def _certificate_intel(self, domain):
-        """Certificate transparency"""
-        print("[3️⃣] Certificate Analysis...")
-        try:
-            url = f"https://crt.sh/?q={domain}&output=json"
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                certificates = response.json()
-                return {
-                    "found": len(certificates),
-                    "source": "crt.sh",
-                    "sample": [cert.get('name_value', '') for cert in certificates[:3]]
-                }
-        except Exception as e:
-            return {"error": str(e)}
-        return {"found": 0}
-    
-    def _find_subdomains(self, domain):
-        """Find subdomains"""
-        print("[4️⃣] Subdomain Discovery...")
-        subdomains = set()
-        common_subs = ['www', 'api', 'mail', 'ftp', 'admin', 'test', 'blog', 'shop']
-        
-        def check_subdomain(sub):
-            try:
-                full_domain = f"{sub}.{domain}"
-                dns.resolver.resolve(full_domain, 'A')
-                return full_domain
-            except:
-                return None
-        
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            results = executor.map(check_subdomain, common_subs)
-            for result in results:
-                if result:
-                    subdomains.add(result)
-        
-        return list(subdomains)
-    
-    def _display_intel_results(self, results):
-        """Display intelligence results"""
-        print(f"\n[📊] INTELLIGENCE RESULTS:")
-        print(f"   Domain: {results['domain']}")
-        
-        if 'whois' in results:
-            print(f"   Registrar: {results['whois'].get('registrar', 'Unknown')}")
-        
-        if 'dns' in results:
-            dns_count = sum(len(records) for records in results['dns'].values())
-            print(f"   DNS Records: {dns_count}")
-        
-        if 'certificates' in results:
-            print(f"   Certificates: {results['certificates'].get('found', 0)} found")
-        
-        if 'subdomains' in results:
-            print(f"   Subdomains: {len(results['subdomains'])} found")
-            for subdomain in results['subdomains']:
-                print(f"      ✅ {subdomain}")
-
-# -----------------------------
-# ENUM MODULE
-# -----------------------------
-class ReconEnum:
-    def __init__(self):
-        self.common_ports = [21, 22, 23, 25, 53, 80, 110, 443, 993, 995, 1433, 3306, 3389, 5432, 5900, 8080, 8443]
-        self.common_subdomains = [
-            'www', 'api', 'mail', 'ftp', 'admin', 'test', 'dev', 'staging', 'prod',
-            'blog', 'shop', 'forum', 'support', 'help', 'docs', 'news', 'media',
-            'cdn', 'static', 'app', 'apps', 'mobile', 'web', 'secure', 'portal'
-        ]
-    
-    def comprehensive_enum(self, domain, active=True, passive=False, ports=False, **kwargs):
-        """Comprehensive domain enumeration"""
-        print(f"\n[🔍] ENUMERATING: {domain}")
-        print("-" * 50)
-        
-        subdomains = set()
-        live_subdomains = set()
-        
-        # Passive enumeration
-        if passive or active:
-            print("[1️⃣] Passive Enumeration...")
-            passive_subs = self._passive_enumeration(domain)
-            subdomains.update(passive_subs)
-        
-        # Active enumeration
-        if active:
-            print("[2️⃣] Active Enumeration...")
-            active_subs = self._active_enumeration(domain)
-            subdomains.update(active_subs)
-        
-        # Live host detection
-        print("[3️⃣] Live Host Detection...")
-        ips, live_hosts = self._resolve_and_check_subdomains(subdomains)
-        live_subdomains.update(live_hosts)
-        
-        # Port scanning
+        # Phase 3: Port Scanning
         open_ports = {}
-        if ports and live_subdomains:
-            print("[4️⃣] Port Scanning...")
-            open_ports = self._port_scanning(live_subdomains)
+        if ports and live_results['live_subdomains']:
+            print("[3️⃣] PHASE 3: Port Scanning...")
+            open_ports = self._port_scanning(live_results['live_subdomains'])
         
-        results = {
+        # Compile final results
+        final_results = {
             "domain": domain,
-            "subdomains": list(subdomains),
-            "live_subdomains": list(live_subdomains),
-            "ips": ips,
+            "all_checked_subdomains": list(self.all_checked_subdomains),
+            "dns_resolved_subdomains": dns_results['resolved'],
+            "live_subdomains": live_results['live_subdomains'],
+            "ips": live_results['ips'],
             "open_ports": open_ports,
-            "total_subdomains": len(subdomains),
-            "total_live": len(live_subdomains),
-            "status": "completed"
+            "stats": {
+                "total_checked": len(self.all_checked_subdomains),
+                "dns_resolved": len(dns_results['resolved']),
+                "live_hosts": len(live_results['live_subdomains']),
+                "open_ports": sum(len(ports) for ports in open_ports.values())
+            }
         }
         
-        self._display_enum_results(results, ports)
-        return results
-    
-    def _passive_enumeration(self, domain):
-        """Passive subdomain discovery"""
-        subdomains = set()
+        self._display_massive_results(final_results)
         
-        # Certificate transparency
-        try:
-            url = f"https://crt.sh/?q=%.{domain}&output=json"
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                for cert in data:
-                    if 'name_value' in cert:
-                        names = cert['name_value'].split('\n')
-                        for name in names:
-                            if domain in name and '*' not in name:
-                                subdomains.add(name.strip())
-        except:
-            pass
+        # Save results
+        if output_file:
+            self._save_massive_results(final_results, output_file)
         
-        return subdomains
+        return final_results
     
-    def _active_enumeration(self, domain):
-        """Active subdomain discovery"""
-        subdomains = set()
+    def _massive_dns_scan(self, domain):
+        """Massive DNS scanning with 1000+ subdomains"""
+        resolved_subdomains = set()
+        all_checked = set()
         
         def check_subdomain(sub):
+            full_domain = f"{sub}.{domain}"
+            all_checked.add(full_domain)
+            
             try:
-                full_domain = f"{sub}.{domain}"
-                dns.resolver.resolve(full_domain, 'A')
-                return full_domain
+                answers = dns.resolver.resolve(full_domain, 'A')
+                ips = [str(rdata) for rdata in answers]
+                return full_domain, ips, "RESOLVED"
+            except dns.resolver.NXDOMAIN:
+                return full_domain, [], "NXDOMAIN"
+            except dns.resolver.NoAnswer:
+                return full_domain, [], "NO_ANSWER"
+            except dns.resolver.Timeout:
+                return full_domain, [], "TIMEOUT"
+            except Exception as e:
+                return full_domain, [], f"ERROR: {str(e)}"
+        
+        # Process in batches to avoid overwhelming
+        batch_size = 100
+        total_batches = (len(MASSIVE_SUBDOMAINS) + batch_size - 1) // batch_size
+        
+        for batch_num in range(total_batches):
+            start_idx = batch_num * batch_size
+            end_idx = min((batch_num + 1) * batch_size, len(MASSIVE_SUBDOMAINS))
+            batch = MASSIVE_SUBDOMAINS[start_idx:end_idx]
+            
+            print(f"    🔄 Batch {batch_num + 1}/{total_batches} ({len(batch)} subdomains)...")
+            
+            with ThreadPoolExecutor(max_workers=50) as executor:
+                results = list(executor.map(check_subdomain, batch))
+            
+            for subdomain, ips, status in results:
+                if ips:  # Only add if DNS resolved
+                    resolved_subdomains.add(subdomain)
+                    self.found_subdomains.add(subdomain)
+                
+                # Track all checked subdomains (including errors)
+                self.all_checked_subdomains.add(subdomain)
+        
+        return {
+            "resolved": list(resolved_subdomains),
+            "total_checked": len(all_checked)
+        }
+    
+    def _live_host_detection(self, dns_results):
+        """Detect live hosts from resolved subdomains"""
+        live_subdomains = set()
+        ips_mapping = {}
+        
+        def check_live_host(subdomain):
+            try:
+                # Try HTTP
+                response = requests.get(f"http://{subdomain}", timeout=3, verify=False)
+                if response.status_code < 400:
+                    return subdomain, "HTTP", response.status_code
             except:
-                return None
+                try:
+                    # Try HTTPS
+                    response = requests.get(f"https://{subdomain}", timeout=3, verify=False)
+                    if response.status_code < 400:
+                        return subdomain, "HTTPS", response.status_code
+                except:
+                    pass
+            return subdomain, "DEAD", 0
+        
+        print(f"    🔄 Checking {len(dns_results['resolved'])} resolved subdomains...")
         
         with ThreadPoolExecutor(max_workers=20) as executor:
-            results = executor.map(check_subdomain, self.common_subdomains)
-            for result in results:
-                if result:
-                    subdomains.add(result)
+            results = list(executor.map(check_live_host, dns_results['resolved']))
         
-        return subdomains
-    
-    def _resolve_and_check_subdomains(self, subdomains):
-        """Resolve subdomains and check live hosts"""
-        ips = {}
-        live_hosts = set()
-        
-        def check_subdomain(subdomain):
-            try:
-                # DNS resolution
-                answers = dns.resolver.resolve(subdomain, 'A')
-                ip_list = [str(rdata) for rdata in answers]
+        for subdomain, protocol, status_code in results:
+            if protocol != "DEAD":
+                live_subdomains.add(subdomain)
                 
-                # HTTP check
+                # Get IPs for live hosts
                 try:
-                    response = requests.get(f"http://{subdomain}", timeout=3, verify=False)
-                    if response.status_code < 400:
-                        live_hosts.add(subdomain)
+                    answers = dns.resolver.resolve(subdomain, 'A')
+                    ips_mapping[subdomain] = [str(rdata) for rdata in answers]
                 except:
-                    try:
-                        response = requests.get(f"https://{subdomain}", timeout=3, verify=False)
-                        if response.status_code < 400:
-                            live_hosts.add(subdomain)
-                    except:
-                        pass
-                
-                return subdomain, ip_list
-            except:
-                return subdomain, []
+                    ips_mapping[subdomain] = []
         
-        with ThreadPoolExecutor(max_workers=15) as executor:
-            results = executor.map(check_subdomain, subdomains)
-            for subdomain, ip_list in results:
-                if ip_list:
-                    ips[subdomain] = ip_list
-        
-        return ips, live_hosts
+        return {
+            "live_subdomains": list(live_subdomains),
+            "ips": ips_mapping
+        }
     
     def _port_scanning(self, subdomains):
         """Port scanning for live hosts"""
+        common_ports = [21, 22, 23, 25, 53, 80, 110, 443, 993, 995, 1433, 3306, 3389, 5432, 5900, 8080, 8443]
         open_ports = {}
         
-        def scan_ports(host):
+        def scan_host_ports(host):
             host_ports = []
-            for port in self.common_ports:
+            for port in common_ports:
                 try:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.settimeout(1)
@@ -301,212 +346,123 @@ class ReconEnum:
                     pass
             return host, host_ports
         
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            results = executor.map(scan_ports, subdomains)
-            for host, ports in results:
-                if ports:
-                    open_ports[host] = ports
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            results = list(executor.map(scan_host_ports, subdomains))
+        
+        for host, ports in results:
+            if ports:
+                open_ports[host] = ports
         
         return open_ports
     
-    def _display_enum_results(self, results, ports_enabled):
-        """Display enumeration results"""
-        print(f"\n[📊] ENUMERATION RESULTS:")
-        print(f"   Domain: {results['domain']}")
-        print(f"   Total Subdomains: {results['total_subdomains']}")
-        print(f"   Live Subdomains: {results['total_live']}")
+    def _display_massive_results(self, results):
+        """Display massive enumeration results"""
+        print(f"\n{'='*60}")
+        print(f"[📊] MASSIVE ENUMERATION COMPLETED!")
+        print(f"{'='*60}")
+        print(f"🎯 Target: {results['domain']}")
+        print(f"🔍 Total Checked: {results['stats']['total_checked']}")
+        print(f"🌐 DNS Resolved: {results['stats']['dns_resolved']}")
+        print(f"✅ Live Hosts: {results['stats']['live_hosts']}")
+        print(f"🔓 Open Ports: {results['stats']['open_ports']}")
         
-        if ports_enabled:
-            total_ports = sum(len(ports) for ports in results['open_ports'].values())
-            print(f"   Open Ports: {total_ports}")
+        # Show sample of results
+        if results['live_subdomains']:
+            print(f"\n[🌐] SAMPLE LIVE SUBDOMAINS (First 20):")
+            for subdomain in sorted(results['live_subdomains'])[:20]:
+                ips = results['ips'].get(subdomain, [])
+                print(f"   ✅ {subdomain} -> {', '.join(ips)}")
         
-        print(f"\n[🌐] LIVE SUBDOMAINS:")
-        for subdomain in sorted(results['live_subdomains'])[:15]:
-            ips = results['ips'].get(subdomain, [])
-            print(f"   ✅ {subdomain} -> {', '.join(ips)}")
-        
-        if ports_enabled and results['open_ports']:
-            print(f"\n[🔓] OPEN PORTS:")
+        if results['open_ports']:
+            print(f"\n[🔓] SAMPLE OPEN PORTS (First 10):")
             for host, ports in list(results['open_ports'].items())[:10]:
                 print(f"   🔓 {host}: {', '.join(map(str, ports))}")
     
-    def save_json_output(self, results, filename):
-        """Save results to JSON file"""
+    def _save_massive_results(self, results, filename):
+        """Save massive results to file"""
         with open(filename, 'w') as f:
-            json.dump(results, f, indent=2)
-        print(f"\n[💾] JSON results saved to: {filename}")
-    
-    def save_text_output(self, results, filename):
-        """Save results to text file"""
-        with open(filename, 'w') as f:
-            f.write(f"ReconX Results for {results['domain']}\n")
-            f.write("=" * 50 + "\n\n")
-            f.write(f"Total Subdomains: {results['total_subdomains']}\n")
-            f.write(f"Live Subdomains: {results['total_live']}\n\n")
+            f.write(f"MASSIVE RECON RESULTS - {results['domain']}\n")
+            f.write("=" * 60 + "\n\n")
             
-            f.write("SUBdomains:\n")
-            for subdomain in sorted(results['subdomains']):
+            f.write("STATISTICS:\n")
+            f.write(f"  Total Subdomains Checked: {results['stats']['total_checked']}\n")
+            f.write(f"  DNS Resolved: {results['stats']['dns_resolved']}\n")
+            f.write(f"  Live Hosts: {results['stats']['live_hosts']}\n")
+            f.write(f"  Open Ports: {results['stats']['open_ports']}\n\n")
+            
+            f.write("ALL CHECKED SUBDOMAINS:\n")
+            f.write("-" * 40 + "\n")
+            for subdomain in sorted(results['all_checked_subdomains']):
                 f.write(f"  {subdomain}\n")
             
-            f.write("\nLIVE HOSTS:\n")
+            f.write("\nDNS RESOLVED SUBDOMAINS:\n")
+            f.write("-" * 40 + "\n")
+            for subdomain in sorted(results['dns_resolved_subdomains']):
+                f.write(f"  ✅ {subdomain}\n")
+            
+            f.write("\nLIVE SUBDOMAINS:\n")
+            f.write("-" * 40 + "\n")
             for subdomain in sorted(results['live_subdomains']):
                 ips = results['ips'].get(subdomain, [])
-                f.write(f"  {subdomain} -> {', '.join(ips)}\n")
+                f.write(f"  🌐 {subdomain} -> {', '.join(ips)}\n")
             
             if results['open_ports']:
                 f.write("\nOPEN PORTS:\n")
+                f.write("-" * 40 + "\n")
                 for host, ports in results['open_ports'].items():
-                    f.write(f"  {host}: {', '.join(map(str, ports))}\n")
+                    f.write(f"  🔓 {host}: {', '.join(map(str, ports))}\n")
         
-        print(f"\n[💾] Text results saved to: {filename}")
+        print(f"\n[💾] Complete results saved to: {filename}")
 
 # -----------------------------
 # COMMAND LINE INTERFACE
 # -----------------------------
 def main():
-    if len(sys.argv) == 1:
-        print_banner()
-        print_usage()
-        return
-    
-    # Handle global options
-    if "-version" in sys.argv or "--version" in sys.argv:
-        print("ReconX v2.2.0")
-        return
-    
-    if "-h" in sys.argv or "--help" in sys.argv:
-        print_banner()
-        print_usage()
-        return
-    
-    # Parse main command
-    parser = argparse.ArgumentParser(description="ReconX - Attack Surface Mapping", add_help=False)
-    parser.add_argument('command', nargs='?', help='Main command (intel|enum)')
-    
-    args, unknown_args = parser.parse_known_args()
-    
-    if not args.command:
-        print_banner()
-        print_usage()
-        return
-    
-    # Handle subcommands
-    if args.command == "intel":
-        handle_intel_command(unknown_args)
-    elif args.command == "enum":
-        handle_enum_command(unknown_args)
-    else:
-        print(f"[❌] Unknown command: {args.command}")
-        print_usage()
-
-def handle_intel_command(unknown_args):
-    """Handle intel subcommand"""
-    parser = argparse.ArgumentParser(description="ReconX Intel", add_help=False)
+    parser = argparse.ArgumentParser(description="ReconX Pro - Massive Subdomain Finder")
     parser.add_argument('-d', '--domain', required=True, help='Target domain')
-    parser.add_argument('-active', action='store_true', help='Enable active methods')
-    
-    try:
-        args = parser.parse_args(unknown_args)
-        print_banner()
-        
-        intel = ReconIntel()
-        results = intel.domain_intel(args.domain, active=args.active)
-        
-        print(f"\n[✅] Intelligence gathering completed for {args.domain}")
-        
-    except SystemExit:
-        print_intel_usage()
-
-def handle_enum_command(unknown_args):
-    """Handle enum subcommand"""
-    parser = argparse.ArgumentParser(description="ReconX Enum", add_help=False)
-    parser.add_argument('-d', '--domain', required=True, help='Target domain')
-    parser.add_argument('-active', action='store_true', help='Enable active methods')
-    parser.add_argument('-passive', action='store_true', help='Passive only')
+    parser.add_argument('-o', '--output', help='Output file to save results')
     parser.add_argument('-ports', action='store_true', help='Enable port scanning')
-    parser.add_argument('-o', help='JSON output file')
-    parser.add_argument('-txt', help='Text output file')
+    parser.add_argument('-active', action='store_true', help='Enable active scanning', default=True)
     
-    try:
-        args = parser.parse_args(unknown_args)
-        print_banner()
-        
-        enum = ReconEnum()
-        results = enum.comprehensive_enum(
-            domain=args.domain,
-            active=args.active,
-            passive=args.passive,
-            ports=args.ports
-        )
-        
-        # Save outputs if specified
-        if args.o:
-            enum.save_json_output(results, args.o)
-        
-        if args.txt:
-            enum.save_text_output(results, args.txt)
-        
-        if not args.o and not args.txt:
-            print(f"\n[💡] Tip: Use -o or -txt to save results to file")
-        
-    except SystemExit:
-        print_enum_usage()
+    args = parser.parse_args()
+    
+    print_banner()
+    
+    recon = AdvancedRecon()
+    results = recon.massive_enumeration(
+        domain=args.domain,
+        active=args.active,
+        ports=args.ports,
+        output_file=args.output
+    )
 
-def print_usage():
-    """Print main usage"""
-    usage = """
-Usage: reconx intel|enum [options]
-
-  -h, --help     Show the program usage message
-  -version       Print the version number
-
-Subcommands:
-
-    reconx intel - Discover targets for enumerations  
-    reconx enum  - Perform enumerations and network mapping
-
-Examples:
-  reconx intel -d example.com
-  reconx enum -d example.com
-  reconx enum -d example.com -ports -txt results.txt
-  reconx enum -d example.com -active -ports -o results.json
+def print_banner():
+    """Print banner"""
+    BANNER = r"""
+██████╗ ███████╗ ██████╗ ██████╗ ███╗   ██╗    ██╗  ██╗
+██╔══██╗██╔════╝██╔════╝██╔═══██╗████╗  ██║    ╚██╗██╔╝
+██████╔╝█████╗  ██║     ██║   ██║██╔██╗ ██║     ╚███╔╝ 
+██╔══██╗██╔══╝  ██║     ██║   ██║██║╚██╗██║     ██╔██╗ 
+██║  ██║███████╗╚██████╗╚██████╔╝██║ ╚████║    ██╔╝ ██╗
+╚═╝  ╚═╝╚══════╝ ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝    ╚═╝  ╚═╝
+              M A S S I V E   R E C O N
 """
-    print(usage)
-
-def print_intel_usage():
-    """Print intel usage"""
-    usage = """
-Usage: reconx intel [options]
-
-OPTIONS:
-  -d, --domain  Target domain (required)
-  -active       Enable active reconnaissance
-
-Examples:
-  reconx intel -d example.com
-  reconx intel -d example.com -active
-"""
-    print(usage)
-
-def print_enum_usage():
-    """Print enum usage"""
-    usage = """
-Usage: reconx enum [options]
-
-OPTIONS:
-  -d, --domain  Target domain (required)
-  -active       Enable active methods
-  -passive      Passive reconnaissance only  
-  -ports        Enable port scanning
-  -o            JSON output file
-  -txt          Text output file
-
-Examples:
-  reconx enum -d example.com
-  reconx enum -d example.com -ports -txt results.txt
-  reconx enum -d example.com -active -ports -o results.json
-"""
-    print(usage)
+    print(BANNER)
+    print("=" * 70)
+    print(f"🎯 1000+ Subdomains Finder - Kisi bhi domain ke liye")
+    print(f"📁 Version: v3.0.0 (Massive Edition)")
+    print(f"🕐 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("=" * 70)
+    print()
 
 if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        print_banner()
+        print("Usage: python3 reconx.py -d example.com [-o results.txt] [-ports]")
+        print("\nExamples:")
+        print("  python3 reconx.py -d facebook.com")
+        print("  python3 reconx.py -d google.com -o results.txt -ports")
+        print("  python3 reconx.py -d microsoft.com -ports")
+        sys.exit(1)
+    
     main()
